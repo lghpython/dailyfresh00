@@ -10,7 +10,7 @@ from django.core.mail import send_mail
 
 from celery_tasks.tasks import send_register_active_email
 from dailyfresh00 import settings
-from user.models import User
+from user.models import User, Address
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, SignatureExpired
 
 
@@ -130,19 +130,26 @@ class LogoutView(View):
         return redirect('user:login')
 
 
-class UserInfoView(LoginRequiredMixin, View):
+# class UserInfoView(LoginRequiredMixin, View):
+class UserInfoView( View):
     def get(self, request):
-        pass
+        # 获取登录用户基本信息, 用户名， 联系电话， 地址
+        user = request.user
+        address = Address.Objects.get_default_address
+        # 获取最近浏览记录 （图片、商品名称、价格 、 单价）
+
+        return render(request, "user_center_info.html")
 
 
 class UserOrderView(View):
     def get(self, request):
-        pass
+        order_page = []
+        return render(request, "user_center_order.html", order_page=order_page)
 
 
 class AddressView(View):
     def get(self, request):
-        pass
+        return render(request,"user_center_site.html")
 
     def post(self, request):
         pass
