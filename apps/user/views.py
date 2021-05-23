@@ -135,16 +135,24 @@ class UserInfoView( View):
     def get(self, request):
         # 获取登录用户基本信息, 用户名， 联系电话， 地址
         user = request.user
-        address = Address.Objects.get_default_address
-        # 获取最近浏览记录 （图片、商品名称、价格 、 单价）
+        address = Address.Objects.get_default_address(user)
 
-        return render(request, "user_center_info.html")
+        # 获取最近浏览记录 （图片、商品名称、价格 、 单价）
+        goods_li = []
+
+        context = {
+            'page': 'user',
+            'address': address,
+            'goods_li': goods_li
+        }
+
+        return render(request, "user_center_info.html", context)
 
 
 class UserOrderView(View):
     def get(self, request):
         order_page = []
-        return render(request, "user_center_order.html", order_page=order_page)
+        return render(request, "user_center_order.html", order_page)
 
 
 class AddressView(View):
