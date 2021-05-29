@@ -147,3 +147,5 @@ EMAIL_HOST_USER = 'lgh66o@163.com'
 EMAIL_HOST_PASSWORD = 'BQTNHLLJNPEZDIUV'
 # 收件人看到的发件人
 EMAIL_FROM = '天天生鲜<lgh66o@163.com>'
+
+LOGIN_URL = '/user/login'

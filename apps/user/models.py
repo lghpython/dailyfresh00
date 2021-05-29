@@ -26,7 +26,7 @@ class Address(BaseModel):
     zip_code = models.CharField(max_length=6, null=True, verbose_name='邮政编码')
     phone = models.CharField(max_length=11, verbose_name='手机号码')
     is_default = models.BooleanField(default=False, verbose_name='是否默认')
-
+    # 自定义管理器objects ， 默认管理器 models.Manager
     objects = AddressManager()
     
     class Meta:

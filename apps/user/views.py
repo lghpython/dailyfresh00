@@ -1,7 +1,6 @@
 import re
 
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -12,6 +11,8 @@ from celery_tasks.tasks import send_register_active_email
 from dailyfresh00 import settings
 from user.models import User, Address
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, SignatureExpired
+
+from utils.mixin import LoginRequiredMixin
 
 
 class RegisterView(View):
@@ -34,14 +35,14 @@ class RegisterView(View):
             return render(request, 'register.html', {'errmsg': '请同意用户协议'})
 
         try:
-            user = User.objects.get(username='username')
+            user = User.objects.get(username=username)
         except User.DoesNotExist:
             user = None
 
         if user:
             return render(request, 'register.html', {'errmsg': '用户名已注册'})
 
-        user = User.objects.create_user(username, password, email)
+        user = User.objects.create_user(username,email,password)
         user.is_active = 0
         user.save()
 
@@ -50,6 +51,7 @@ class RegisterView(View):
         info = {'confirm': user.id}
         token = serializer.dumps(info)
         token = token.decode()
+        print(info, token)
 
         # subject = '天天生鲜欢迎信息'
         # message = ''
@@ -68,14 +70,14 @@ class ActiveView(View):
     """ 激活用户账户 """
 
     def get(self, request, token):
-        serializer = Serializer(settings.SECRET_KEY, 3360)
+        serializer = Serializer(settings.SECRET_KEY, 3600)
         try:
 
             info = serializer.loads(token)
             uid = info['confirm']
-
+            print(uid)
             user = User.objects.get(id=uid)
-            user.active = 1
+            user.is_active = 1
             user.save()
 
             return redirect(reverse('user:login'))
@@ -102,12 +104,13 @@ class LoginView(View):
             return render('login.html', {"errmsg": '登录数据不完整'})
 
         user = authenticate(username=username, password=password)
+        print([username,password,user])
         if user is not None:
             if user.is_active:
                 login(request, user)
 
-                next_url = reverse('goods:index')
-
+                next_url = request.GET.get('next',reverse('goods:index'))
+                print(next_url)
                 response = redirect(next_url)
 
                 remember = request.GET.get('remember')
@@ -121,7 +124,7 @@ class LoginView(View):
             else:
                 return render(request, 'login.html', {'errmsg': '账户未激活'})
         else:
-            return render(request, 'login.html', {'errmsh': '用户名或密码错误'})
+            return render(request, 'login.html', {'errmsg': '用户名或密码错误'})
 
 
 class LogoutView(View):
@@ -130,12 +133,11 @@ class LogoutView(View):
         return redirect('user:login')
 
 
-# class UserInfoView(LoginRequiredMixin, View):
-class UserInfoView( View):
+class UserInfoView(LoginRequiredMixin, View):
     def get(self, request):
         # 获取登录用户基本信息, 用户名， 联系电话， 地址
         user = request.user
-        address = Address.Objects.get_default_address(user)
+        address = Address.objects.get_default_address(user)
 
         # 获取最近浏览记录 （图片、商品名称、价格 、 单价）
         goods_li = []
@@ -149,15 +151,48 @@ class UserInfoView( View):
         return render(request, "user_center_info.html", context)
 
 
-class UserOrderView(View):
+class UserOrderView(LoginRequiredMixin, View):
     def get(self, request):
         order_page = []
         return render(request, "user_center_order.html", order_page)
 
 
 class AddressView(View):
+# class AddressView(LoginRequiredMixin, View):
     def get(self, request):
-        return render(request,"user_center_site.html")
+        user = request.user
+        # try:
+        #     address = Address.objects.get(user=user, is_default=True)
+        # except Address.DoesNotExist:
+        #     address = None
+        address = Address.objects.get_default_address(user)
+        return render(request,"user_center_site.html", {'page':'address', 'address': address})
 
     def post(self, request):
-        pass
+        # 提交 新地址
+        receiver = request.POST.get('receiver')
+        addr = request.POST.get('address')
+        zip_code = request.POST.get('zip_code')
+        phone = request.POST.get('phone')
+        print([receiver,phone,zip_code, addr])
+        if not all([receiver,addr,phone]):
+            return render(request,'user_center_site.html', {'errmsg':'地址信息不完整'})
+
+        if not re.match(r'^1[3|4|5|7|8|][0-9]{9}$',phone):
+            return render(request,'user_center_site.html', {'errmsg':'手机格式不正确'})
+
+        user = request.user
+
+        # 设置默认地址
+        address = Address.objects.get_default_address(user)
+        is_default = False if address else True
+
+        Address.objects.create(user = user,
+            receiver = receiver,
+            address=addr,
+            zip_code=zip_code,
+            phone=phone,
+            is_default=is_default
+        )
+
+        return redirect(reverse('user:address'))
