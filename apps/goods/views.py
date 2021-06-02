@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.views import View
+from django_redis import get_redis_connection
 
 from goods.models import GoodsType, IndexGoodsBanner, IndexPromotionBanner, IndexGoodsTypeBanner, GoodsSKU
 
@@ -34,7 +35,7 @@ class IndexView(View):
         # 获取商品轮播数据
         index_goods_banner = IndexGoodsBanner.objects.all().order_by('index')
         # 获取商品促销活动数据
-        index_promotion_banner = IndexPromotionBanner.objects.all.order_by('index')
+        index_promotion_banner = IndexPromotionBanner.objects.all().order_by('index')
 
         # 获取商品分类展示数据
         for type in types:
@@ -62,19 +63,44 @@ class DetailView(View):
         types = GoodsType.objects.all()
 
         # 获取商品评论信息
+
         # 获取新品信息
+        new_skus = GoodsSKU.objects.filter("-create_time")[:2]
         # 获取同一个SPU的其他规格商品
+        same_spu_skus = GoodsSKU.objects.all().exclude(id=goods_id)
+        user = request.user
+        cart_count = 0
+        if user.is_authenticated():
+            # 购物车计数
 
-        context = {'sku': sku, 'types': types}
+            # redis 缓存浏览记录
+            conn = get_redis_connection('default')
+            history_key = 'history_%d'.user.id
+            # 移除已存在的goods_id
+            conn.lrem(history_key, 0, goods_id)
+            # 首位添加goods_id
+            conn.lpush(history_key, goods_id)
+            # 保留前5个历史记录
+            conn.ltrim(history_key, 0, 4)
 
-        return render(request,'detail.html',context)
+        context = {'sku': sku,
+                   'types': types,
+                   'new_skus': new_skus,
+                   'same_spu_skus': same_spu_skus,
+                   'cart_count': cart_count,
+                   }
+
+        return render(request, 'detail.html', context)
 
 
 class ListView(View):
-    def get(self,request, type):
+    def get(self, request, type):
         # 获取类型列表信息
-        goods = GoodsSKU.objects.filter(type=type).all()
-        context={
-            'goods': goods
+        sku = GoodsSKU.objects.filter(type=type).all()
+
+
+
+        context = {
+            'sku': sku,
         }
         return render(request, 'list.html', context)

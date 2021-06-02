@@ -6,9 +6,11 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views import View
 from django.core.mail import send_mail
+from django_redis import get_redis_connection
 
 from celery_tasks.tasks import send_register_active_email
 from dailyfresh00 import settings
+from goods.models import GoodsSKU
 from user.models import User, Address
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, SignatureExpired
 
@@ -140,7 +142,13 @@ class UserInfoView(LoginRequiredMixin, View):
         address = Address.objects.get_default_address(user)
 
         # 获取最近浏览记录 （图片、商品名称、价格 、 单价）
-        goods_li = []
+        conn = get_redis_connection('default')
+        history_key = "history_%d".user.id
+        sku_ids = conn.lrange(history_key, 0, 4)
+        goods_li =[]
+        for id in sku_ids:
+            goods = GoodsSKU.objects.get(id=id)
+            goods_li.append(goods)
 
         context = {
             'page': 'user',
