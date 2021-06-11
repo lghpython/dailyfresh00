@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from django.shortcuts import render, redirect
 from django.views import View
 from django_redis import get_redis_connection
@@ -30,25 +31,31 @@ def index(request):
 
 class IndexView(View):
     def get(self, request):
-        # 获取商品类型
-        types = GoodsType.objects.all()
-        # 获取商品轮播数据
-        index_goods_banner = IndexGoodsBanner.objects.all().order_by('index')
-        # 获取商品促销活动数据
-        index_promotion_banner = IndexPromotionBanner.objects.all().order_by('index')
+        context = cache.get('static_index_html')
 
-        # 获取商品分类展示数据
-        for type in types:
-            title_banners = IndexGoodsTypeBanner.objects.filter(type=type, display_type=0).order_by('index')
-            image_banners = IndexGoodsTypeBanner.objects.filter(type=type, display_type=1).order_by('index')
-            type.title_banners = title_banners
-            type.image_banners = image_banners
+        if context is None:
+            # 获取商品类型
+            types = GoodsType.objects.all()
+            # 获取商品轮播数据
+            index_goods_banner = IndexGoodsBanner.objects.all().order_by('index')
+            # 获取商品促销活动数据
+            index_promotion_banner = IndexPromotionBanner.objects.all().order_by('index')
 
-        # 上下文整合数据
-        context = {'index_goods_banner': index_goods_banner,
-                   'index_promotion_banner': index_promotion_banner,
-                   'types': types,
-                   }
+            # 获取商品分类展示数据
+            for type in types:
+                title_banners = IndexGoodsTypeBanner.objects.filter(type=type, display_type=0).order_by('index')
+                image_banners = IndexGoodsTypeBanner.objects.filter(type=type, display_type=1).order_by('index')
+                type.title_banners = title_banners
+                type.image_banners = image_banners
+
+            # 上下文整合数据
+            context = {'index_goods_banner': index_goods_banner,
+                       'index_promotion_banner': index_promotion_banner,
+                       'types': types,
+                       }
+            cache.set('static_index_html',context, 60*60*1)
+
+            # 获取购物车
         return render(request, 'index.html', context)
 
 

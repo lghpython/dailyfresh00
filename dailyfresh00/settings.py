@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'tinymce',
     'user',
     'goods',
     # 'cart',
@@ -83,7 +84,7 @@ DATABASES = {
         'NAME': 'freshdb',
         'USER': 'root',
         'PASSWORD': '123',
-        'HOST': '127.0.0.1',
+        'HOST': 'localhost',
         'POST': 3306,
 
     }
@@ -165,3 +166,9 @@ CACHES = {
 # 配置session缓存
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
+
+FDFS_CLIENT_CONF = './utils/fdfs/client.conf'
+
+FDFS_URL = 'http://192.168.50.16:8888/'
+
+DEFAULT_FILE_STORAGE = 'utils.fdfs.storage.FDFSStorage'

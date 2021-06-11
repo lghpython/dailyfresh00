@@ -16,10 +16,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+from dailyfresh00.test import static_index
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('user/', include(('user.urls', 'user'), namespace='user')),
     path('goods/', include(('goods.urls', 'goods'), namespace='goods')),
     path('cart/', include(('cart.urls', 'cart'), namespace='cart')),
     path('order/', include(('order.urls', 'order'), namespace='order')),
+    path('test/staticindex', static_index)
 ]
+
