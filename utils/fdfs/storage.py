@@ -32,6 +32,7 @@ class FDFSStorage(Storage):
         #     'Uploaded size': upload_size,
         #     'Storage IP': storage_ip
         # }
+        print(res.get('Remote file_id'))
         if res.get('Status') != 'Upload successed.':
             raise Exception('上传文件到 fastfds 失败')
 

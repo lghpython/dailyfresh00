@@ -1,4 +1,5 @@
 from django.core.cache import cache
+from django.core.paginator import Paginator
 from django.shortcuts import render, redirect
 from django.views import View
 from django_redis import get_redis_connection
@@ -32,7 +33,8 @@ def index(request):
 class IndexView(View):
     def get(self, request):
         context = cache.get('static_index_html')
-
+        # print(context)
+        # context = None
         if context is None:
             # 获取商品类型
             types = GoodsType.objects.all()
@@ -53,9 +55,18 @@ class IndexView(View):
                        'index_promotion_banner': index_promotion_banner,
                        'types': types,
                        }
-            cache.set('static_index_html',context, 60*60*1)
+            cache.set('static_index_html', context, 60 * 60 * 1)
 
-            # 获取购物车
+        # 获取购物车数量 登录用户获取购物车数量
+        cart_count = 0
+        user = request.user
+        if user.is_authenticated:
+            conn = get_redis_connection('default')
+            cart_key = "cart_%d" % user.id
+            cart_count = conn.hlen(cart_key)
+
+        context.update(cart_count=cart_count)
+        # print(context)
         return render(request, 'index.html', context)
 
 
@@ -79,10 +90,13 @@ class DetailView(View):
         cart_count = 0
         if user.is_authenticated():
             # 购物车计数
+            conn = get_redis_connection('default')
+            cart_key = 'cart_%d' % user.id
+            cart_count = conn.hlen(cart_key)
 
             # redis 缓存浏览记录
             conn = get_redis_connection('default')
-            history_key = 'history_%d'.user.id
+            history_key = 'history_%d' % user.id
             # 移除已存在的goods_id
             conn.lrem(history_key, 0, goods_id)
             # 首位添加goods_id
@@ -101,13 +115,70 @@ class DetailView(View):
 
 
 class ListView(View):
-    def get(self, request, type):
-        # 获取类型列表信息
-        sku = GoodsSKU.objects.filter(type=type).all()
+    def get(self, request, type_id, page):
+        '''显示列表页'''
+        # 获取所属类型
+        try:
+            type = GoodsType.objects.get(id=type_id)
+        except GoodsType.DoesNotExists:
+            return redirect(reverse('good:index'))
+        types = GoodsType.objects.all()
 
+        # 获取该类型 所有商品信息
+        skus = GoodsSKU.objects.filter(type=type).all()
+        sort = request.GET.get('sort')
+        # 以不同排序展示列表商品
+        if sort == 'hot':
+            skus = GoodsSKU.objects.filter(type=type).orderby('-sales')
+        elif sort == 'price':
+            skus = GoodsSKU.objects.filter(type=type).orderby('price')
+        else:
+            sort = 'default'
+            skus = GoodsSKU.objects.filter(type=type).orderby('-id')
 
+        # 对数据分页
+        paginator = Paginator(skus, 1)
+
+        # 页面不在正确范围， 显示首页
+        try:
+            page = int(page)
+        except Exception as e:
+            page = 1
+
+        num_pages = paginator.nums_pages
+        if page > num_pages:
+            page = 1
+
+        skus_page = paginator.page(page)
+
+        if num_pages < 5:
+            pages = range(1, num_pages + 1)
+        elif num_pages < 3:
+            pages = range(1, 6)
+        elif num_pages - page <= 2:
+            pages = range(num_pages-4, num_pages + 1)
+        else:
+            pages = range(page-2, page+3)
+
+        # 获取新品信息
+        new_skus = GoodsSKU.objects.filter(type=type).orderby('-create_time')[:2]
+
+        # 获取用户购物车中商品的数目
+        user = request.user
+        cart_count = 0
+        if user.is_authenticated():
+            # 用户已登录
+            conn = get_redis_connection('default')
+            cart_key = 'cart_%d' % user.id
+            cart_count = conn.hlen(cart_key)
 
         context = {
-            'sku': sku,
+            'type':type,
+            'types':type,
+            'sort':sort,
+            'cart_count': cart_count,
+            'pages': pages,
+            'skus_page': skus_page,
+            'new_skus': new_skus,
         }
         return render(request, 'list.html', context)

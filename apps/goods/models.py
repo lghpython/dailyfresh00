@@ -14,6 +14,9 @@ class Goods(BaseModel):
         verbose_name = '商品SPU'
         verbose_name_plural = verbose_name
 
+    def __str__(self):
+        return self.name
+
 
 class GoodsType(BaseModel):
     '''商品类型模型类'''
@@ -49,9 +52,12 @@ class GoodsSKU(BaseModel):
     status = models.SmallIntegerField(default=1, choices=status_choices, verbose_name='商品状态')
 
     class Meta:
-        db_table = 'df_good_sku'
+        db_table = 'df_goods_sku'
         verbose_name = '商品'
         verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return self.name
 
 
 class GoodsImage(BaseModel):
@@ -64,6 +70,10 @@ class GoodsImage(BaseModel):
         verbose_name = '商品图片'
         verbose_name_plural = verbose_name
 
+    def __str__(self):
+        return self.sku.name
+
+
 class IndexGoodsBanner(BaseModel):
     '''商业轮播商品展示模型类'''
     sku = models.ForeignKey('GoodsSKU',verbose_name='商品', on_delete=models.CASCADE)
@@ -74,6 +84,10 @@ class IndexGoodsBanner(BaseModel):
         db_table = 'df_index_banner'
         verbose_name = '首页轮播商品'
         verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return self.sku.name
+
 
 
 class IndexGoodsTypeBanner(BaseModel):
@@ -89,9 +103,12 @@ class IndexGoodsTypeBanner(BaseModel):
     index = models.SmallIntegerField(default=0, verbose_name='展示顺序')
 
     class Meta:
-        db_table = 'df_index_type_banner'
+        db_table = 'df_index_type_goods'
         verbose_name = '主页分类展示商品'
         verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return self.sku.name
 
 
 class IndexPromotionBanner(BaseModel):
@@ -102,6 +119,10 @@ class IndexPromotionBanner(BaseModel):
     index = models.SmallIntegerField(default=0,verbose_name='展示顺序')
 
     class Meta:
-        db_table = 'db_index_promotion'
+        db_table = 'df_index_promotion'
         verbose_name = '主页促销活动'
         verbose_name_plural = verbose_name
+
+    def __str__(self):
+        return self.name
+

@@ -18,6 +18,8 @@ from utils.mixin import LoginRequiredMixin
 
 
 class RegisterView(View):
+    ''' 注册页面 '''
+
     def get(self, request):
         return render(request, 'register.html')
 
@@ -44,7 +46,7 @@ class RegisterView(View):
         if user:
             return render(request, 'register.html', {'errmsg': '用户名已注册'})
 
-        user = User.objects.create_user(username,email,password)
+        user = User.objects.create_user(username, email, password)
         user.is_active = 0
         user.save()
 
@@ -106,12 +108,12 @@ class LoginView(View):
             return render('login.html', {"errmsg": '登录数据不完整'})
 
         user = authenticate(username=username, password=password)
-        print([username,password,user])
+        print([username, password, user])
         if user is not None:
             if user.is_active:
                 login(request, user)
 
-                next_url = request.GET.get('next',reverse('goods:index'))
+                next_url = request.GET.get('next', reverse('goods:index'))
                 print(next_url)
                 response = redirect(next_url)
 
@@ -143,9 +145,9 @@ class UserInfoView(LoginRequiredMixin, View):
 
         # 获取最近浏览记录 （图片、商品名称、价格 、 单价）
         conn = get_redis_connection('default')
-        history_key = "history_%d".user.id
+        history_key = "history_%d"%user.id
         sku_ids = conn.lrange(history_key, 0, 4)
-        goods_li =[]
+        goods_li = []
         for id in sku_ids:
             goods = GoodsSKU.objects.get(id=id)
             goods_li.append(goods)
@@ -166,7 +168,7 @@ class UserOrderView(LoginRequiredMixin, View):
 
 
 class AddressView(View):
-# class AddressView(LoginRequiredMixin, View):
+    # class AddressView(LoginRequiredMixin, View):
     def get(self, request):
         user = request.user
         # try:
@@ -174,7 +176,7 @@ class AddressView(View):
         # except Address.DoesNotExist:
         #     address = None
         address = Address.objects.get_default_address(user)
-        return render(request,"user_center_site.html", {'page':'address', 'address': address})
+        return render(request, "user_center_site.html", {'page': 'address', 'address': address})
 
     def post(self, request):
         # 提交 新地址
@@ -182,12 +184,12 @@ class AddressView(View):
         addr = request.POST.get('address')
         zip_code = request.POST.get('zip_code')
         phone = request.POST.get('phone')
-        print([receiver,phone,zip_code, addr])
-        if not all([receiver,addr,phone]):
-            return render(request,'user_center_site.html', {'errmsg':'地址信息不完整'})
+        print([receiver, phone, zip_code, addr])
+        if not all([receiver, addr, phone]):
+            return render(request, 'user_center_site.html', {'errmsg': '地址信息不完整'})
 
-        if not re.match(r'^1[3|4|5|7|8|][0-9]{9}$',phone):
-            return render(request,'user_center_site.html', {'errmsg':'手机格式不正确'})
+        if not re.match(r'^1[3|4|5|7|8|][0-9]{9}$', phone):
+            return render(request, 'user_center_site.html', {'errmsg': '手机格式不正确'})
 
         user = request.user
 
@@ -195,12 +197,12 @@ class AddressView(View):
         address = Address.objects.get_default_address(user)
         is_default = False if address else True
 
-        Address.objects.create(user = user,
-            receiver = receiver,
-            address=addr,
-            zip_code=zip_code,
-            phone=phone,
-            is_default=is_default
-        )
+        Address.objects.create(user=user,
+                               receiver=receiver,
+                               address=addr,
+                               zip_code=zip_code,
+                               phone=phone,
+                               is_default=is_default
+                               )
 
         return redirect(reverse('user:address'))
