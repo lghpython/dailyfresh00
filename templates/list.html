@@ -16,7 +16,7 @@
                     {% for sku in new_skus %}
                         <li>
                             <a href="{% url 'goods:detail' sku.id %}"><img src="{{ sku.image.url }}"></a>
-                            <h4><a href="{% url 'good:detail' sku.id %}">{{ sku.name }}</a></h4>
+                            <h4><a href="{% url 'goods:detail' sku.id %}">{{ sku.name }}</a></h4>
                             <div class="prize">￥{{ sku.price }}</div>
                         </li>
                     {% endfor %}
@@ -46,9 +46,6 @@
             </ul>
 
             <div class="pagenation">
-                <a href="#">
-                    <上一页
-                </a>
                 {% if skus_page.has_previous %}
                     <a href="{% url 'goods:list' type.id skus_page.previous_page_number %}?sort={{ sort }}"> <上一页 </a>
                 {% endif %}

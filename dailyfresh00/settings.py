@@ -15,6 +15,8 @@ import sys
 import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+# import haystack.backends.whoosh_backend
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 
@@ -39,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'tinymce',
+    'haystack', # 全文搜索引擎
     'user',
     'goods',
     # 'cart',
@@ -172,3 +175,15 @@ FDFS_CLIENT_CONF = './utils/fdfs/client.conf'
 FDFS_URL = 'http://192.168.50.16:8888/'
 
 DEFAULT_FILE_STORAGE = 'utils.fdfs.storage.FDFSStorage'
+
+HAYSTACK_CONNECTIONS={
+    'default':{
+            # 使用whoosh引擎
+            # 'ENGINE':'haystack.backends.whoosh_backend.WhooshEngine',
+            'ENGINE':'haystack.backends.whoosh_cn_backend.WhooshEngine',
+            # 索引文件路径
+            'PATH': os.path.join(BASE_DIR, 'whoosh_index'),
+        }
+}
+
+HAYSTACK_SINGAL_PROCESSOR='haystack.singals.RealtimeSingnalProcessor'

@@ -1,6 +1,7 @@
 from django.core.cache import cache
 from django.core.paginator import Paginator
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.views import View
 from django_redis import get_redis_connection
 
@@ -83,12 +84,12 @@ class DetailView(View):
         # 获取商品评论信息
 
         # 获取新品信息
-        new_skus = GoodsSKU.objects.filter("-create_time")[:2]
+        new_skus = GoodsSKU.objects.filter(type=sku.type).order_by("-create_time")[:2]
         # 获取同一个SPU的其他规格商品
         same_spu_skus = GoodsSKU.objects.all().exclude(id=goods_id)
         user = request.user
         cart_count = 0
-        if user.is_authenticated():
+        if user.is_authenticated:
             # 购物车计数
             conn = get_redis_connection('default')
             cart_key = 'cart_%d' % user.id
@@ -121,7 +122,7 @@ class ListView(View):
         try:
             type = GoodsType.objects.get(id=type_id)
         except GoodsType.DoesNotExists:
-            return redirect(reverse('good:index'))
+            return redirect(reverse('goods:index'))
         types = GoodsType.objects.all()
 
         # 获取该类型 所有商品信息
@@ -129,12 +130,12 @@ class ListView(View):
         sort = request.GET.get('sort')
         # 以不同排序展示列表商品
         if sort == 'hot':
-            skus = GoodsSKU.objects.filter(type=type).orderby('-sales')
+            skus = GoodsSKU.objects.filter(type=type).order_by('-sales')
         elif sort == 'price':
-            skus = GoodsSKU.objects.filter(type=type).orderby('price')
+            skus = GoodsSKU.objects.filter(type=type).order_by('price')
         else:
             sort = 'default'
-            skus = GoodsSKU.objects.filter(type=type).orderby('-id')
+            skus = GoodsSKU.objects.filter(type=type).order_by('-id')
 
         # 对数据分页
         paginator = Paginator(skus, 1)
@@ -145,28 +146,32 @@ class ListView(View):
         except Exception as e:
             page = 1
 
-        num_pages = paginator.nums_pages
-        if page > num_pages:
+
+        num_pages = paginator.num_pages
+        if page > paginator.num_pages:
             page = 1
 
+        # 获取第page页的Page实例对象
         skus_page = paginator.page(page)
+        print(page,num_pages)
 
         if num_pages < 5:
             pages = range(1, num_pages + 1)
-        elif num_pages < 3:
+        elif page <= 3:
             pages = range(1, 6)
         elif num_pages - page <= 2:
             pages = range(num_pages-4, num_pages + 1)
         else:
             pages = range(page-2, page+3)
-
+        print(pages)
+        skus_page = paginator.page(page)
         # 获取新品信息
-        new_skus = GoodsSKU.objects.filter(type=type).orderby('-create_time')[:2]
+        new_skus = GoodsSKU.objects.filter(type=type).order_by('-create_time')[:2]
 
         # 获取用户购物车中商品的数目
         user = request.user
         cart_count = 0
-        if user.is_authenticated():
+        if user.is_authenticated:
             # 用户已登录
             conn = get_redis_connection('default')
             cart_key = 'cart_%d' % user.id
@@ -174,11 +179,12 @@ class ListView(View):
 
         context = {
             'type':type,
-            'types':type,
+            'types':types,
             'sort':sort,
             'cart_count': cart_count,
             'pages': pages,
             'skus_page': skus_page,
             'new_skus': new_skus,
         }
+        # print(context)
         return render(request, 'list.html', context)
