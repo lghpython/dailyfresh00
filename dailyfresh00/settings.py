@@ -44,8 +44,8 @@ INSTALLED_APPS = [
     'haystack', # 全文搜索引擎
     'user',
     'goods',
-    # 'cart',
-    # 'order',
+    'cart',
+    'order',
 ]
 
 MIDDLEWARE = [
