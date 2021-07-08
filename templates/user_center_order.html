@@ -5,6 +5,7 @@
     <div class="right_content clearfix">
         {% csrf_token %}
         <h3 class="common_title2">全部订单</h3>
+
         {% for order in order_page %}
             <ul class="order_list_th w978 clearfix">
                 <li class="col01">{{ order.create_time }}</li>
@@ -51,8 +52,9 @@
                 <a href="{% url 'user:order' order_page.next_page_number %}">下一页></a>
             {% endif %}
         </div>
+
     </div>
-{% endblock right_content %}
+{% endblock %}
 {% block bottom_js %}
     <script src="{% static 'js/jquery-1.12.4.min.js' %}"></script>
     <script>

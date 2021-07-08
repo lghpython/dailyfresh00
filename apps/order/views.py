@@ -2,7 +2,7 @@ from datetime import datetime
 
 from django.db import transaction
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views import View
 from django_redis import get_redis_connection
 
@@ -22,22 +22,22 @@ class OrderPlaceView(LoginRequiredMixin, View):
 
         if not sku_ids:
             # 返回购物车页面
-            return render(reversed('cart:show'))
+            return redirect(reversed('cart:show'))
 
         conn = get_redis_connection('default')
-        cart_key = 'cart_%d'%user.id
+        cart_key = 'cart_%d' % user.id
 
-        skus =[]
+        skus = []
 
         total_count = 0
         total_price = 0
 
         for sku_id in sku_ids:
             sku = GoodsSKU.objects.get(id=sku_id)
-            count = conn.hget(cart_key,sku_id)
+            count = conn.hget(cart_key, sku_id)
             amount = sku.price * int(count)
 
-            sku.count = count
+            sku.count = int(count)
             sku.amount = amount
             skus.append(sku)
             total_count += int(count)
@@ -48,18 +48,18 @@ class OrderPlaceView(LoginRequiredMixin, View):
         total_pay = total_price + transit_place
 
         # 获取用户地址
-        addrs = Address.objects.get(user=user)
+        addrs = Address.objects.filter(user=user)
 
         # 整合上下文
         sku_ids = ','.join(sku_ids)
         context = {
             'skus': skus,
-            'total_price':total_price,
+            'total_price': total_price,
             'total_count': total_count,
-            'total_pay':total_pay,
-            'addrs':addrs,
-            'transit_place':transit_place,
-            'sku_ids':sku_ids,
+            'total_pay': total_pay,
+            'addrs': addrs,
+            'transit_place': transit_place,
+            'sku_ids': sku_ids,
         }
 
         return render(request, 'place_order.html', context)
@@ -67,25 +67,27 @@ class OrderPlaceView(LoginRequiredMixin, View):
 
 class OrderCommitView(View):
     """ 订单提交页面"""
+    # 设置该函数为一个事务
     @transaction.atomic
     def post(self, request):
         user = request.user
-        if user.is_authenticated:
-            return JsonResponse({'res':0, 'errmsg':'用户未登录'})
+        if not user.is_authenticated:
+            return JsonResponse({'res': 0, 'errmsg': '用户未登录'})
         # 获取请求数据
         pay_method = request.POST.get('pay_method')
         sku_ids = request.POST.get('sku_ids')
         addr_id = request.POST.get('addr_id')
+        # print(sku_ids)
         # 校验数据完整性
-        if not([pay_method, sku_ids, addr_id]):
-            return JsonResponse({'res':1, 'errmsg':'数据不完整'})
+        if not ([pay_method, sku_ids, addr_id]):
+            return JsonResponse({'res': 1, 'errmsg': '数据不完整'})
 
-        if pay_method not in OrderInfo.PAY_METHODS.keys(self):
-            return JsonResponse({'res':2, 'errmsg':'非法的支付方法'})
+        if pay_method not in OrderInfo.PAY_METHODS.keys():
+            return JsonResponse({'res': 2, 'errmsg': '非法的支付方法'})
         try:
-            address = Address.objects.get(id=addr_id)
+            addr = Address.objects.get(id=addr_id)
         except Address.DoesNotExist:
-            return JsonResponse({'res':3, 'errmsg':'非法的地址'})
+            return JsonResponse({'res': 3, 'errmsg': '非法的地址'})
 
         # todo: 创建订单核心业务
         # 订单id: 但钱时间+用户id
@@ -96,39 +98,41 @@ class OrderCommitView(View):
         save_id = transaction.savepoint()
         total_price = 0
         total_count = 0
+
         try:
+            print('s', order_id, user, addr,total_price,total_count, transit_price, pay_method)
             order = OrderInfo.objects.create(
                 order_id=order_id,
                 user=user,
-                address=address,
-                total_price=total_price,
-                total_count=total_count,
-                transit_place=transit_price,
-                pay_method=pay_method,
-
+                addr=addr,
+                transit_price=transit_price,
+                pay_method=pay_method
             )
+            print('e')
             # todo: 用户的订单中有几个商品，需要向df_order_goods表中加入几条记录
             conn = get_redis_connection('default')
             cart_key = 'cart_%d' % user.id
 
             sku_ids = sku_ids.split(',')
+            print(sku_ids)
             for sku_id in sku_ids:
                 try:
+                    print(sku_id)
                     sku = GoodsSKU.objects.select_for_update().get(id=sku_id)
 
                 except GoodsSKU.DoesNotExist:
                     # 回滚事务保存点
                     transaction.savepoint_rollback(save_id)
-                    return JsonResponse({'res':4, 'errmsg':'商品不存在'})
+                    return JsonResponse({'res': 4, 'errmsg': '商品不存在'})
 
                 import time
-                time.sleep(10)
+                time.sleep(5)
 
-                count = conn.hget(cart_key,sku_id)
+                count = conn.hget(cart_key, sku_id)
                 count = int(count)
-                if count>sku.stock:
+                if count > sku.stock:
                     transaction.savepoint_rollback(save_id)
-                    return JsonResponse({'res':6, 'errmsg':'商品库存不足'})
+                    return JsonResponse({'res': 6, 'errmsg': '商品库存不足'})
 
                 OrderGoods.objects.create(
                     order=order,
@@ -150,22 +154,23 @@ class OrderCommitView(View):
             order.save()
         except:
             transaction.savepoint_rollback(save_id)
-            return JsonResponse({'res':7, 'errmsg':'下单失败'})
+            return JsonResponse({'res': 7, 'errmsg': '下单失败'})
 
         transaction.savepoint_commit(save_id)
-        conn.hdel(cart_key,*sku_ids)
-        return JsonResponse({'res':7,'message':'返回成功'})
-
+        print(sku_ids)
+        conn.hdel(cart_key, *sku_ids)
+        return JsonResponse({'res': 5, 'message': '创建成功'})
 
 
 class OrderPayView(LoginRequiredMixin, View):
-    def post(self,request):
+    def post(self, request):
         user = request.user
+
 
 
 class CommentView(LoginRequiredMixin, View):
-    def get(self,request):
+    def get(self, request):
         user = request.user
 
-    def post(self,request):
+    def post(self, request):
         user = request.user

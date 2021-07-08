@@ -1,6 +1,7 @@
 import re
 
 from django.contrib.auth import authenticate, login, logout
+from django.core.paginator import Paginator
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -11,6 +12,7 @@ from django_redis import get_redis_connection
 from celery_tasks.tasks import send_register_active_email
 from dailyfresh00 import settings
 from goods.models import GoodsSKU
+from order.models import OrderInfo, OrderGoods
 from user.models import User, Address
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, SignatureExpired
 
@@ -145,7 +147,7 @@ class UserInfoView(LoginRequiredMixin, View):
 
         # 获取最近浏览记录 （图片、商品名称、价格 、 单价）
         conn = get_redis_connection('default')
-        history_key = "history_%d"%user.id
+        history_key = "history_%d" % user.id
         sku_ids = conn.lrange(history_key, 0, 4)
         goods_li = []
         for id in sku_ids:
@@ -162,9 +164,54 @@ class UserInfoView(LoginRequiredMixin, View):
 
 
 class UserOrderView(LoginRequiredMixin, View):
-    def get(self, request):
-        order_page = []
-        return render(request, "user_center_order.html", order_page)
+    def get(self, request, page):
+        # todo: 获取用户数据
+        user = request.user
+
+        # todo: 获取订单信息和订单商品信息
+        orders = OrderInfo.objects.filter(user=user).order_by('-create_time')
+        print(user, orders)
+        for order in orders:
+            order_skus = OrderGoods.objects.filter(order_id=order.order_id)
+            for order_sku in order_skus:
+                # 动态添加商品小计
+                amount = order_sku.price * int(order_sku.count)
+                order_sku.amount = amount
+            # 设置订单状态
+            order.status_name = OrderInfo.ORDER_STATUS[order.order_status]
+            # 保存商品数据
+            order.order_skus = order_skus
+        # todo: 订单分页， 获取对应页面数据
+        paginator = Paginator(orders, 1)
+        try:
+            page = int(page)
+        except Exception as e:
+            page = 1
+
+        if page > paginator.num_pages:
+            page = 1
+        order_page = paginator.page(page)
+
+        # 分页选择器
+        pages = 0
+        num_pages = paginator.num_pages
+        if num_pages < 5:
+            pages = range(1, num_pages + 1)
+        elif page < 3:
+            pages = range(1, 6)
+        elif page > num_pages - 2:
+            pages = range(num_pages - 4, num_pages + 1)
+        else:
+            pages = range(page - 2, page + 3)
+
+        # todo:整合上下文
+        context = {
+            'orders': orders,
+            'order_page': order_page,
+            'pages':pages,
+        }
+        print(context)
+        return render(request, "user_center_order.html", context)
 
 
 class AddressView(View):
