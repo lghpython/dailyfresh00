@@ -29,8 +29,9 @@
                     </td>
                     <td width="15%">{{ order.total_price|add:order.transit_price }}(含运费:{{ order.transit_price }})元</td>
                     <td width="15%">{{ order.status_name }}</td>
-                    <td width="15%"><a href="#" order_id="{{ order.order_id }}" status="{{ order.order_status }}"
-                                       class="oper_btn">去付款</a></td>
+                    <td width="15%">
+                        <a href="#" order_id="{{ order.order_id }}" status="{{ order.order_status }}" class="oper_btn">去付款</a>
+                    </td>
                 </tr>
                 </tbody>
             </table>
@@ -78,6 +79,7 @@
             if (status == 1) {
                 // 进行支付
                 csrf = $('input[name="csrfmiddlewaretoken"]').val()
+                // 获取用户付款方式
                 // 组织参数
                 params = {'order_id': order_id, 'csrfmiddlewaretoken': csrf}
                 // 发起ajax post请求，访问/order/pay, 传递参数:order_id

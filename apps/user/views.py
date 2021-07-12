@@ -170,7 +170,6 @@ class UserOrderView(LoginRequiredMixin, View):
 
         # todo: 获取订单信息和订单商品信息
         orders = OrderInfo.objects.filter(user=user).order_by('-create_time')
-        print(user, orders)
         for order in orders:
             order_skus = OrderGoods.objects.filter(order_id=order.order_id)
             for order_sku in order_skus:
@@ -206,11 +205,10 @@ class UserOrderView(LoginRequiredMixin, View):
 
         # todo:整合上下文
         context = {
-            'orders': orders,
+            'page': 'order',
             'order_page': order_page,
             'pages':pages,
         }
-        print(context)
         return render(request, "user_center_order.html", context)
 
 
