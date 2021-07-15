@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, re_path
 
 from cart.views import CartInfoView
 from goods import views
@@ -9,5 +9,5 @@ urlpatterns = [
     path('commit', OrderCommitView.as_view(), name='commit'),
     path('pay', OrderPayView.as_view(), name='pay'),
     path('check', PayCheckView.as_view(), name='pay'),
-    path('comment', CommentView.as_view(), name='comment'),
+    re_path('^comment/(?P<order_id>\d+)$', CommentView.as_view(), name='comment'),
 ]

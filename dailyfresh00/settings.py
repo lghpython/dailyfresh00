@@ -27,9 +27,9 @@ sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 SECRET_KEY = '#42!4b^%rtvounsi_ji+)^c3k129hwx!8ju1#hzi3g!qae8s5+'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -133,6 +133,8 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
+
+STATIC_ROOT='/data/www/dailyfresh/static'
 
 TINYMCE_DEFAULT_CONFIG = {
     'theme': 'advance',

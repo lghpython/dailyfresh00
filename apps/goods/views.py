@@ -6,6 +6,7 @@ from django.views import View
 from django_redis import get_redis_connection
 
 from goods.models import GoodsType, IndexGoodsBanner, IndexPromotionBanner, IndexGoodsTypeBanner, GoodsSKU
+from order.models import OrderGoods
 
 """
 def index(request):
@@ -81,7 +82,8 @@ class DetailView(View):
         # 获取商品类型
         types = GoodsType.objects.all()
 
-        # 获取商品评论信息
+        # 获取商品的评论信息
+        sku_orders = OrderGoods.objects.filter(sku=sku).exclude(comment='')
 
         # 获取新品信息
         new_skus = GoodsSKU.objects.filter(type=sku.type).order_by("-create_time")[:2]
@@ -106,7 +108,7 @@ class DetailView(View):
             conn.ltrim(history_key, 0, 4)
 
         context = {'sku': sku,
-                   'types': types,
+                   'sku_orders': sku_orders,
                    'new_skus': new_skus,
                    'same_spu_skus': same_spu_skus,
                    'cart_count': cart_count,

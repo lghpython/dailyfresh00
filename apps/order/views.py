@@ -5,6 +5,7 @@ from alipay import AliPay
 from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.views import View
 from django_redis import get_redis_connection
 
@@ -25,7 +26,7 @@ class OrderPlaceView(LoginRequiredMixin, View):
 
         if not sku_ids:
             # 返回购物车页面
-            return redirect(reversed('cart:show'))
+            return redirect(reverse('cart:show'))
 
         conn = get_redis_connection('default')
         cart_key = 'cart_%d' % user.id
@@ -295,40 +296,54 @@ class PayCheckView(View):
 
 
 class CommentView(LoginRequiredMixin, View):
-    def get(self, request):
+    def get(self, request, order_id):
         user = request.user
-        if not user.is_authenticated:
-            return JsonResponse({'res': 0, 'errmsg': '用户未登录'})
 
-        # todo: 接受参数
-        order_id = request.POST.get('order_id')
         if not order_id:
-            return JsonResponse({'res': 1, 'errmsg': '订单id失败'})
-
-        # todo: 获取订单数据
+            return redirect(reverse('user:order'))
         try:
-            # 获取订单 其他支付方式未实现，这里统一支付宝支付未支付订单
-            print(order_id, user)
-            # order = OrderInfo.objects.get(order_id=order_id， user=user, order_status=1)
-            order = OrderInfo.objects.get(order_id=order_id, user=user, order_status=1, pay_method=3)
-        except OrderInfo.DoesNotExist:
-            return JsonResponse({'res': 2, 'errmsg': '订单错误'})
+            order = OrderInfo.objects.get(order_id=order_id, user=user)
 
-    def post(self, request):
+        except OrderInfo.DoesNotExist:
+            return redirect(reverse('user:order'))
+
+        order.status_name = OrderInfo.ORDER_STATUS[order.order_status]
+
+        order_skus = OrderGoods.objects.filter(order_id=order_id)
+        for order_sku in order_skus:
+            amount = order_sku.price * order_sku.count
+            order_sku.amount = amount
+
+        order.order_skus = order_skus
+
+        return render(request, 'order_comment.html', {'order':order})
+
+    def post(self, request, order_id):
         user = request.user
-        if not user.is_authenticated:
-            return JsonResponse({'res': 0, 'errmsg': '用户未登录'})
 
-        # todo: 接受参数
-        order_id = request.POST.get('order_id')
         if not order_id:
-            return JsonResponse({'res': 1, 'errmsg': '订单id失败'})
-
-        # todo: 获取订单数据
+            return redirect(reverse('user:order'))
         try:
-            # 获取订单 其他支付方式未实现，这里统一支付宝支付未支付订单
-            print(order_id, user)
-            # order = OrderInfo.objects.get(order_id=order_id， user=user, order_status=1)
-            order = OrderInfo.objects.get(order_id=order_id, user=user, order_status=1, pay_method=3)
+            order = OrderInfo.objects.get(order_id=order_id, user=user)
+
         except OrderInfo.DoesNotExist:
-            return JsonResponse({'res': 2, 'errmsg': '订单错误'})
+            return redirect(reverse('user:order'))
+        # todo: 接受参数
+        total_count = request.POST.get('total_count')
+        total_count = int(total_count)
+
+        for i in range(1, total_count+1):
+            sku_id = request.POST.get('sku_%d'%i)
+            comment = request.POST.get('comment_%d'%i)
+            try:
+                order_goods = OrderGoods.objects.get(order_id = order_id,  sku_id =sku_id)
+            except OrderGoods.DoesNotExist:
+                continue
+
+            order_goods.comment = comment
+            order_goods.save()
+
+        order.order_status = 5  # 已完成
+        order.save()
+
+        return redirect(reverse("user:order", kwargs={"page": 1}))
